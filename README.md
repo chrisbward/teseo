@@ -1,41 +1,56 @@
-<h1 align="center" style="font-size: 2.5rem;">teseo</h1>
-<h2 align="center">Go templ components for SEO</h2>
+<h1 align="center">
+  teseo
+</h1>
+<h2 align="center" style="font-size: 1.5em;">
+  Go templ components for SEO.
+</h2>
 <p align="center">
-    <a href="https://github.com/indaco/teseo/blob/main/LICENSE" target="_blank">
-        <img src="https://img.shields.io/badge/license-mit-blue?style=flat-square&logo=none" alt="license" />
+    <a href="https://github.com/indaco/teseo/actions/workflows/ci.yml" target="_blank">
+      <img src="https://github.com/indaco/teseo/actions/workflows/ci.yml/badge.svg" alt="CI" />
     </a>
-     &nbsp;
-     <a href="https://goreportcard.com/report/github.com/indaco/teseo" target="_blank">
+     <a href="https://codecov.io/gh/indaco/teseo">
+      <img src="https://codecov.io/gh/indaco/teseo/branch/main/graph/badge.svg" alt="Code coverage" />
+    </a>
+    <a href="https://goreportcard.com/report/github.com/indaco/teseo" target="_blank">
         <img src="https://goreportcard.com/badge/indaco/teseo" alt="go report card" />
     </a>
-    &nbsp;
+    <a href="https://badge.fury.io/gh/indaco%2Fteseo" target="_blank">
+      <img src="https://badge.fury.io/gh/indaco%2Fteseo.svg" alt="version" height="18" />
+   </a>
     <a href="https://pkg.go.dev/github.com/indaco/teseo/" target="_blank">
         <img src="https://pkg.go.dev/badge/github.com/indaco/teseo/.svg" alt="go reference" />
     </a>
-    &nbsp;
-    <a href="https://www.jetify.com/devbox/docs/contributor-quickstart/">
-      <img
-          src="https://www.jetify.com/img/devbox/shield_moon.svg"
-          alt="Built with Devbox"
-      />
-  </a>
+    <a href="https://github.com/indaco/teseo/blob/main/LICENSE" target="_blank">
+        <img src="https://img.shields.io/badge/license-mit-blue?style=flat-square&logo=none" alt="license" />
+    </a>
+    <a href="https://www.jetify.com/devbox/docs/contributor-quickstart/" target="_blank">
+      <img src="https://www.jetify.com/img/devbox/shield_moon.svg" alt="Built with Devbox" />
+    </a>
 </p>
 
-`teseo` provides a comprehensive list of SEO-related data types (go structs) that adhere to **Schema.org** and **OpenGraph** specifications, with methods to easily generate [templ](https://github.com/a-h/templ) components or standard `template/html` output from them.
+**teseo** provides a rich set of SEO-focused Go structs that follow **Schema.org** and **OpenGraph** specifications, with helpers to render structured data using either [templ](https://github.com/a-h/templ) components or Go’s built-in `html/template`.
 
-Whether you are looking to implement _Schema.org JSON-LD_, _OpenGraph_, or _Twitter Cards_, `teseo` helps you generate SEO-friendly meta information effortlessly.
+Whether you're working with _Schema.org JSON-LD_, _OpenGraph_, or _Twitter Cards_, `teseo` simplifies the process of adding SEO metadata to your web applications.
 
 ## Features
 
-- A comprehensive list of useful **Schema.org JSON-LD** types.
-- A comprehensive list of useful **OpenGraph** meta tags.
-- Support for **Twitter Cards** meta tags.
-- Easy-to-use methods to generate JSON-LD and meta tags.
-- Render data types as **templ components** or using **template/html**.
+- Complete support for **Schema.org JSON-LD** types
+- Built-in types for **OpenGraph** meta tags
+- Easy-to-generate **Twitter Card** metadata
+- Dual rendering support: `templ` components or Go `template/html`
+- Developer-friendly API with helpers and factory methods
+
+## Installation
+
+Add this package to your project:
+
+```bash
+go get github.com/indaco/teseo@latest
+```
 
 ## Supported Data Types
 
-### Schema.org JSON-LD Entities
+### Schema.org JSON-LD
 
 - Article
 - BreadcrumbList
@@ -49,7 +64,7 @@ Whether you are looking to implement _Schema.org JSON-LD_, _OpenGraph_, or _Twit
 - WebPage
 - WebSite
 
-### OpenGraph Data Types
+### OpenGraph
 
 - Article
 - Audio
@@ -77,19 +92,16 @@ Whether you are looking to implement _Schema.org JSON-LD_, _OpenGraph_, or _Twit
 - App Card
 - Player Card
 
-## Installation
-
-Add this package to your project:
-
-```bash
-go get github.com/indaco/teseo@latest
-```
-
 ## Usage
 
 ### Schema.org JSON-LD
 
-For **Schema.org JSON-LD**, each entity provides `ToJsonLd` and `ToGoHTMLJsonLd` methods. You can render the structured data as a templ component or as an HTML string, suitable for Go's `template/html`. Entities can be created using **pure structs** or **factory methods**.
+Each entity includes:
+
+- `ToJsonLd()` → renders a `templ.Component`
+- `ToGoHTMLJsonLd()` → returns a `template.HTML string`
+
+You can define data using plain structs or with provided factory functions.
 
 #### Example: WebPage
 
@@ -399,7 +411,7 @@ This works for all supported Twitter Cards (e.g., App Card, Player Card, etc.).
 
 ## Demo
 
-Check out the _demos folder for real-world usage of:
+Check out the [_demos](_demos/) folder for real-world usage of:
 
 - JSON-LD structured data
 - OpenGraph meta tags
