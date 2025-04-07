@@ -355,11 +355,11 @@ templ FirstArticle() {
 The expected output:
 
 ```html
-<meta property="og:type" content="article"/>
-<meta property="og:title" content="Example Article"/>
-<meta property="og:url" content="https://www.example.com/article/example-article"/>
-<meta property="og:description" content="This is an example article description."/>
-<meta property="og:image" content="https://www.example.com/images/article.jpg"/>
+<meta property="og:type" content="article">
+<meta property="og:title" content="Example Article">
+<meta property="og:url" content="https://www.example.com/article/example-article">
+<meta property="og:description" content="This is an example article description.">
+<meta property="og:image" content="https://www.example.com/images/article.jpg">
 ```
 
 ### Twitter Cards
@@ -400,11 +400,11 @@ templ AboutMe() {
 The expected output:
 
 ```html
-<meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Example Summary"/>
-<meta name="twitter:description" content="This is an example summary card."/>
-<meta name="twitter:image" content="https://www.example.com/summary.jpg"/>
-<meta name="twitter:site" content="@example_site"/>
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Example Summary">
+<meta name="twitter:description" content="This is an example summary card.">
+<meta name="twitter:image" content="https://www.example.com/summary.jpg">
+<meta name="twitter:site" content="@example_site">
 ```
 
 This works for all supported Twitter Cards (e.g., App Card, Player Card, etc.).
