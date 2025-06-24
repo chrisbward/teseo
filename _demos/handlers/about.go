@@ -21,8 +21,8 @@ func HandleAbout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a new SiteNavigationElement struct to be populated by reading the sitemap.xml file.
-	sne := &schemaorg.SiteNavigationElement{}
+	// Create a new SiteNavigationElementList struct to be populated by reading the sitemap.xml file.
+	sne := &schemaorg.SiteNavigationElementList{}
 	err = sne.FromSitemapFile("./_demos/statics/sitemap.xml")
 	if err != nil {
 		log.Fatalf("Failed to read sitemap: %v", err)
