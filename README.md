@@ -225,11 +225,11 @@ The expected output for a URL like `https://www.example.com/about`:
 </script>
 ```
 
-#### SiteNavigationElement: JSON-LD and Sitemap Generation
+#### SiteNavigationElementList: JSON-LD and Sitemap Generation
 
-The **SiteNavigationElement** represents a Schema.org object that can be used to structure site navigation data. This entity supports both JSON-LD generation and the creation of a sitemap XML file.
+The **SiteNavigationElementList** represents a Schema.org `ItemList` composed of `SiteNavigationElement` entries. It can be used to structure navigation menus as JSON-LD and optionally generate a sitemap XML file.
 
-**Factory method usage:**
+**Example usage in Templ page:**
 
 ```go
 package pages
@@ -238,12 +238,11 @@ import "github.com/indaco/teseo/schemaorg"
 
 templ HomePage() {
  {{
-    sne := schemaorg.NewSiteNavigationElementWithItemList(
-      "Main Navigation",
-      "https://www.example.com",
-      []schemaorg.ItemListElement{
-        {Name: "Home", URL: "https://www.example.com", Position: 1},
-        {Name: "About", URL: "https://www.example.com/about", Position: 2},
+    sne := schemaorg.NewSiteNavigationElementList(
+      "main",
+      []schemaorg.SiteNavigationElement{
+        schemaorg.NewSimpleSiteNavigationElement(1, "Home", "https://www.example.com"),
+        schemaorg.NewSimpleSiteNavigationElement(2, "About", "https://www.example.com/about"),
       },
     )
  }}
@@ -253,7 +252,7 @@ templ HomePage() {
       <meta charset="UTF-8"/>
       <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
       <title>teseo - homepage</title>
-      <!-- render JSON-LD here -->
+      <!-- Render JSON-LD -->
       @sne.ToJsonLd()
     </head>
     <body>
@@ -269,13 +268,21 @@ The expected output:
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SiteNavigationElement",
-  "name": "Main Navigation",
-  "url": "https://www.example.com",
-  "position": 1,
+  "@type": "ItemList",
+  "identifier": "main",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "Home", "url": "https://www.example.com"},
-    {"@type": "ListItem", "position": 2, "name": "About", "url": "https://www.example.com/about"}
+    {
+      "@type": "SiteNavigationElement",
+      "position": 1,
+      "name": "Home",
+      "url": "https://www.example.com"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 2,
+      "name": "About",
+      "url": "https://www.example.com/about"
+    }
   ]
 }
 </script>
@@ -294,15 +301,13 @@ import (
 )
 
 func HandleHome(w http.ResponseWriter, r *http.Request) {
-  sne := schemaorg.NewSiteNavigationElementWithItemList(
-    "Main Navigation",
-    "https://www.example.com",
-    []schemaorg.ItemListElement{
-      {Name: "Home", URL: "https://www.example.com", Position: 1},
-      {Name: "About", URL: "https://www.example.com/about", Position: 2},
+  sne := schemaorg.NewSiteNavigationElementList(
+    "main",
+    []schemaorg.SiteNavigationElement{
+      schemaorg.NewSimpleSiteNavigationElement(1, "Home", "https://www.example.com"),
+      schemaorg.NewSimpleSiteNavigationElement(2, "About", "https://www.example.com/about"),
     },
   )
-
 
   err := sne.ToSitemapFile("./_demos/statics/sitemap.xml")
   if err != nil {
@@ -311,12 +316,12 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 
   err = pages.HomePage(sne).Render(r.Context(), w)
   if err != nil {
-    return
+    log.Printf("render error: %v", err)
   }
 }
 ```
 
-Similarly, the `FromSitemapFile` method allows you to parse a sitemap XML file and populate the `SiteNavigationElement` struct. This can speed up the debugging process and is particularly useful when working with dynamically generated sitemaps.
+Similarly, the `FromSitemapFile` method allows you to parse a sitemap XML file and populate the `SiteNavigationElementList` struct. This is especially useful for debugging or importing existing sitemaps into your application logic.
 
 ### OpenGraph Meta Tags
 

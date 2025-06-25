@@ -2,11 +2,13 @@ package schemaorg
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -24,25 +26,201 @@ const sampleSitemapXML = `<?xml version="1.0" encoding="UTF-8"?>
 </urlset>`
 
 // Sample Go struct data for testing
-var sampleSiteNav = &SiteNavigationElement{
+var sampleSiteNav = &SiteNavigationElementList{
 	Context: "https://schema.org",
-	Type:    "SiteNavigationElement",
-	ItemList: &ItemList{
-		Context: "https://schema.org",
-		Type:    "ItemList",
-		ItemListElement: []ItemListElement{
-			{
-				Type:     "SiteNavigationElement",
-				URL:      "http://www.example.com/",
-				Position: 1,
-			},
-			{
-				Type:     "SiteNavigationElement",
-				URL:      "http://www.example.com/about",
-				Position: 2,
+	Type:    "ItemList",
+	ItemListElement: []SiteNavigationElement{
+		{Type: "SiteNavigationElement", URL: "http://www.example.com/", Position: 1},
+		{Type: "SiteNavigationElement", URL: "http://www.example.com/about", Position: 2},
+	},
+}
+
+func TestSiteNavigationElementList_EnsureDefaults(t *testing.T) {
+	sne := &SiteNavigationElementList{
+		ItemListElement: []SiteNavigationElement{},
+	}
+	sne.ensureDefaults()
+
+	if sne.Context != "https://schema.org" {
+		t.Errorf("expected context to be schema.org, got %s", sne.Context)
+	}
+	if sne.Type != "ItemList" {
+		t.Errorf("expected type to be ItemList, got %s", sne.Type)
+	}
+
+	if len(sne.ItemListElement) != 0 {
+		t.Errorf("expected no item, got %d", len(sne.ItemListElement))
+	}
+}
+
+func TestNewSiteNavigationElementList(t *testing.T) {
+	items := []SiteNavigationElement{{Position: 1, Name: "Home", URL: "https://example.com"}}
+	snel := NewSiteNavigationElementList("", items)
+
+	if snel.Context != "https://schema.org" {
+		t.Errorf("expected context to be schema.org")
+	}
+	if snel.Type != "ItemList" {
+		t.Errorf("expected type to be ItemList")
+	}
+
+}
+
+func TestSiteNavigationElement_Validate(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *SiteNavigationElementList
+		expected []string
+	}{
+		{
+			name: "valid input",
+			input: NewSiteNavigationElementList("Nav", []SiteNavigationElement{
+				NewSimpleSiteNavigationElement(1, "Home", "https://example.com"),
+			}),
+			expected: nil,
+		},
+		{
+			name:  "empty item list",
+			input: &SiteNavigationElementList{},
+			expected: []string{
+				"ItemList should contain at least one item",
 			},
 		},
-	},
+		{
+			name: "missing fields in item list element",
+			input: &SiteNavigationElementList{
+				Identifier: "Nav",
+				ItemListElement: []SiteNavigationElement{
+					{}, // all fields missing
+				},
+			},
+			expected: []string{
+				"missing name in ItemListElement at position 1",
+				"missing url in ItemListElement at position 1",
+				"missing position in ItemListElement at index 0",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, warnings := tt.input.Validate()
+			if len(warnings) != len(tt.expected) {
+				t.Errorf("expected %d warnings, got %d: %v", len(tt.expected), len(warnings), warnings)
+				return
+			}
+			for _, expected := range tt.expected {
+				found := slices.Contains(warnings, expected)
+				if !found {
+					t.Errorf("expected warning %q not found in %v", expected, warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestNewSiteNavigationElement_SetsDefaults(t *testing.T) {
+	element := &SiteNavigationElement{Position: 1, Name: "Home", URL: "https://example.com"}
+	element.ensureDefaults()
+
+	if element.Type != "SiteNavigationElement" {
+		t.Errorf("expected type to be SiteNavigationElement, got %s", element.Type)
+	}
+}
+
+func TestNewSiteNavigationElementsFromLinks(t *testing.T) {
+	links := []NavigationLink{
+		{Name: "Home", URL: "https://example.com", Description: "Homepage"},
+		{Name: "About", URL: "https://example.com/about", Description: "About us"},
+	}
+
+	expected := []SiteNavigationElement{
+		{
+			Type:        "SiteNavigationElement",
+			Position:    1,
+			Name:        "Home",
+			Description: "Homepage",
+			URL:         "https://example.com",
+		},
+		{
+			Type:        "SiteNavigationElement",
+			Position:    2,
+			Name:        "About",
+			Description: "About us",
+			URL:         "https://example.com/about",
+		},
+	}
+
+	got := NewSiteNavigationElementsFromLinks(links)
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("unexpected SiteNavigationElement slice\nExpected: %+v\nGot: %+v", expected, got)
+	}
+}
+
+func TestSiteNavigationElementList_ToJsonLd_WritesWarnings(t *testing.T) {
+	// Save original stderr and restore after test
+	origStderr := os.Stderr
+	defer func() { os.Stderr = origStderr }()
+
+	// Create pipe to capture stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stderr = w
+
+	// Create input with missing fields to trigger warnings
+	list := &SiteNavigationElementList{
+		Identifier: "test",
+		ItemListElement: []SiteNavigationElement{
+			{}, // All fields missing
+		},
+	}
+
+	// Run ToJsonLd to capture stderr output
+	component := list.ToJsonLd()
+
+	// Close writer and read stderr content
+	w.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stderr: %v", err)
+	}
+
+	output := buf.String()
+
+	// Check expected messages
+	expectedWarnings := []string{
+		"missing name in ItemListElement at position 1",
+		"missing url in ItemListElement at position 1",
+		"missing position in ItemListElement at index 0",
+	}
+
+	for _, warning := range expectedWarnings {
+		if !strings.Contains(output, warning) {
+			t.Errorf("expected warning %q in stderr output, got:\n%s", warning, output)
+		}
+	}
+
+	// Basic check that a templ.Component was returned
+	if component == nil {
+		t.Errorf("expected non-nil component from ToJsonLd")
+	}
+}
+
+func TestSiteNavigationElement_ToGoHTMLJsonLd(t *testing.T) {
+	sne := NewSiteNavigationElementList("Main Nav", []SiteNavigationElement{
+		NewSimpleSiteNavigationElement(1, "Home", "https://example.com"),
+	})
+
+	html, err := sne.ToGoHTMLJsonLd()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if html == "" {
+		t.Errorf("expected non-empty HTML output")
+	}
 }
 
 // TestToSitemapFile tests the ToSitemapFile function
@@ -66,9 +244,16 @@ func TestToSitemapFile(t *testing.T) {
 		t.Fatalf("Failed to read generated sitemap file: %v", err)
 	}
 
-	// Compare the generated XML with the expected output
-	if !bytes.Equal(output, []byte(sampleSitemapXML)) {
-		t.Errorf("Generated XML does not match expected XML.\nExpected:\n%s\nGot:\n%s", sampleSitemapXML, string(output))
+	// Compare the generated XML with the expected output by unmarshalling both
+	var expected, actual XMLSitemap
+	if err := xml.Unmarshal([]byte(sampleSitemapXML), &expected); err != nil {
+		t.Fatalf("invalid expected XML: %v", err)
+	}
+	if err := xml.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("invalid generated XML: %v", err)
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("sitemap XML mismatch\nExpected: %+v\nGot: %+v", expected, actual)
 	}
 }
 
@@ -93,7 +278,7 @@ func TestFromSitemapFile(t *testing.T) {
 	}
 
 	// Create an empty SiteNavigationElement to load data into
-	var siteNav SiteNavigationElement
+	var siteNav SiteNavigationElementList
 
 	// Call FromSitemapFile to populate the struct
 	err = siteNav.FromSitemapFile(tempFile.Name())
@@ -107,140 +292,14 @@ func TestFromSitemapFile(t *testing.T) {
 	}
 }
 
-func TestSiteNavigationElement_EnsureDefaults(t *testing.T) {
-	sne := &SiteNavigationElement{
-		ItemList: &ItemList{},
-	}
-	sne.ensureDefaults()
-
-	if sne.Context != "https://schema.org" {
-		t.Errorf("expected context to be schema.org, got %s", sne.Context)
-	}
-	if sne.Type != "SiteNavigationElement" {
-		t.Errorf("expected type to be SiteNavigationElement, got %s", sne.Type)
-	}
-	if sne.Position != 1 {
-		t.Errorf("expected default position to be 1, got %d", sne.Position)
-	}
-	if sne.ItemList.Context != "https://schema.org" {
-		t.Errorf("expected itemList context to be schema.org, got %s", sne.ItemList.Context)
-	}
-	if sne.ItemList.Type != "ItemList" {
-		t.Errorf("expected itemList type to be ItemList, got %s", sne.ItemList.Type)
-	}
-}
-
-func TestNewSiteNavigationElement_SetsDefaults(t *testing.T) {
-	itemList := &ItemList{ItemListElement: []ItemListElement{{Name: "Home", URL: "https://example.com", Position: 1}}}
-	sne := NewSiteNavigationElement("Main Nav", "https://example.com", 2, "main", itemList)
-
-	if sne.Context != "https://schema.org" {
-		t.Errorf("expected context to be schema.org, got %s", sne.Context)
-	}
-	if sne.Type != "SiteNavigationElement" {
-		t.Errorf("expected type to be SiteNavigationElement, got %s", sne.Type)
-	}
-	if sne.Position != 2 {
-		t.Errorf("expected position 2, got %d", sne.Position)
-	}
-	if sne.ItemList == nil || sne.ItemList.Type != "ItemList" {
-		t.Errorf("expected ItemList with type ItemList")
-	}
-}
-
-func TestNewItemList_SetsDefaults(t *testing.T) {
-	items := []ItemListElement{{Name: "Home", URL: "https://example.com", Position: 1}}
-	list := NewItemList(items)
-
-	if list.Context != "https://schema.org" {
-		t.Errorf("expected context to be schema.org")
-	}
-	if list.Type != "ItemList" {
-		t.Errorf("expected type to be ItemList")
-	}
-	if len(list.ItemListElement) != 1 {
-		t.Errorf("expected one item, got %d", len(list.ItemListElement))
-	}
-}
-
-func TestSiteNavigationElement_ToGoHTMLJsonLd(t *testing.T) {
-	sne := NewSiteNavigationElementWithItemList("Main Nav", "https://example.com", []ItemListElement{
-		NewItemListElement("Home", "https://example.com", 1),
-	})
-
-	html, err := sne.ToGoHTMLJsonLd()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if html == "" {
-		t.Errorf("expected non-empty HTML output")
-	}
-}
-
-func TestSiteNavigationElement_Validate(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    *SiteNavigationElement
-		expected []string
-	}{
-		{
-			name: "valid input",
-			input: NewSiteNavigationElementWithItemList("Nav", "https://example.com", []ItemListElement{
-				NewItemListElement("Home", "https://example.com", 1),
-			}),
-			expected: nil,
-		},
-		{
-			name:  "missing name and url",
-			input: &SiteNavigationElement{},
-			expected: []string{
-				"missing recommended field: name",
-				"missing recommended field: url",
-				"ItemList should contain at least one item",
-			},
-		},
-		{
-			name: "missing fields in item list element",
-			input: &SiteNavigationElement{
-				Name: "Nav", URL: "https://example.com",
-				ItemList: &ItemList{
-					ItemListElement: []ItemListElement{
-						{}, // all fields missing
-					},
-				},
-			},
-			expected: []string{
-				"missing name in ItemListElement at position 1",
-				"missing url in ItemListElement at position 1",
-				"missing position in ItemListElement at index 0",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			warnings := tt.input.Validate()
-			if len(warnings) != len(tt.expected) {
-				t.Errorf("expected %d warnings, got %d: %v", len(tt.expected), len(warnings), warnings)
-				return
-			}
-			for _, expected := range tt.expected {
-				found := slices.Contains(warnings, expected)
-				if !found {
-					t.Errorf("expected warning %q not found in %v", expected, warnings)
-				}
-			}
-		})
-	}
-}
-
 func TestToSitemapFile_Errors(t *testing.T) {
-	sne := &SiteNavigationElement{}
+	sne := &SiteNavigationElementList{}
 
 	// ItemList is nil
 	err := sne.ToSitemapFile("dummy.xml")
-	if err == nil || err.Error() != "ItemList is nil, cannot generate sitemap" {
-		t.Errorf("expected error for nil ItemList, got %v", err)
+	expected := "failed to generate sitemap XML: item list is nil, cannot generate sitemap"
+	if err == nil || err.Error() != expected {
+		t.Errorf("expected error %q, got %v", expected, err)
 	}
 
 	// XML marshal error (simulate by injecting invalid data if needed)
@@ -253,7 +312,7 @@ func TestToSitemapFile_Errors(t *testing.T) {
 }
 
 func TestFromSitemapFile_Errors(t *testing.T) {
-	sne := &SiteNavigationElement{}
+	sne := &SiteNavigationElementList{}
 
 	// File not found
 	err := sne.FromSitemapFile("/nonexistent/path/to/file.xml") // from previous execution
@@ -287,16 +346,15 @@ func TestToSitemapFile_WriteFileError(t *testing.T) {
 		return fmt.Errorf("mock write error")
 	}
 
-	sne := &SiteNavigationElement{
-		ItemList: &ItemList{
-			ItemListElement: []ItemListElement{
-				{URL: "https://example.com"},
-			},
+	sne := &SiteNavigationElementList{
+		ItemListElement: []SiteNavigationElement{
+			{URL: "https://example.com"},
 		},
 	}
 	err := sne.ToSitemapFile("dummy.xml")
-	if err == nil || err.Error() != "error writing XML file: mock write error" {
-		t.Errorf("expected mock write error, got %v", err)
+	expected := `failed to write sitemap file "dummy.xml": mock write error`
+	if err == nil || err.Error() != expected {
+		t.Errorf("expected %q, got %v", expected, err)
 	}
 }
 
@@ -310,11 +368,9 @@ func TestToSitemapFile_MarshalIndentError(t *testing.T) {
 		return nil, fmt.Errorf("simulated marshal error")
 	}
 
-	sne := &SiteNavigationElement{
-		ItemList: &ItemList{
-			ItemListElement: []ItemListElement{
-				{URL: "https://example.com"},
-			},
+	sne := &SiteNavigationElementList{
+		ItemListElement: []SiteNavigationElement{
+			{URL: "https://example.com"},
 		},
 	}
 
@@ -322,7 +378,8 @@ func TestToSitemapFile_MarshalIndentError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
-	if err.Error() != "error marshaling sitemap to XML: simulated marshal error" {
+	expected := "failed to generate sitemap XML: error marshaling sitemap XML: simulated marshal error"
+	if err.Error() != expected {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -342,7 +399,7 @@ func TestFromSitemapFile_ReadError(t *testing.T) {
 		return faultyReader{}, nil
 	}
 
-	sne := &SiteNavigationElement{}
+	sne := &SiteNavigationElementList{}
 	err := sne.FromSitemapFile("dummy.xml")
 
 	if err == nil {

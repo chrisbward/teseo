@@ -44,22 +44,14 @@ var website = schemaorg.WebSite{
 	},
 }
 
-// Create item list elements using the constructor
-var itemListElements = []schemaorg.ItemListElement{
-	schemaorg.NewItemListElement("Home", "https://www.example.com/", 1),
-	schemaorg.NewItemListElement("About Us", "https://www.example.com/about", 2),
+// Create site navigation elements using the constructor
+var itemListElements = []schemaorg.SiteNavigationElement{
+	schemaorg.NewSiteNavigationElement(1, "Home", "ACME home page", "https://www.example.com/"),
+	schemaorg.NewSiteNavigationElement(2, "About Us", "Read more about ACME company", "https://www.example.com/about"),
 }
 
-// Create an item list using the constructor
-var itemList = schemaorg.NewItemList(itemListElements)
-
-var sne = schemaorg.SiteNavigationElement{
-	Name:       "Main Navigation",
-	URL:        "https://www.example.com/secondary",
-	Position:   1,
-	Identifier: "main-nav",
-	ItemList:   &itemList,
-}
+// Create a site navigation element list using the constructor
+var sne = schemaorg.NewSiteNavigationElementList("main-nav", itemListElements)
 
 templ SEO() {
 	@org.ToJsonLd()

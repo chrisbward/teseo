@@ -19,122 +19,98 @@ var (
 	}
 )
 
-// SiteNavigationElement represents a Schema.org SiteNavigationElement object.
-// For more details about the meaning of the properties see: https://schema.org/SiteNavigationElement
+// SiteNavigationElementList represents a Schema.org `ItemList` object whose
+// `itemListElement` consists of `SiteNavigationElement` entries.
 //
-// Example usage:
+// It is typically used to describe a website's main navigation structure in
+// structured data (JSON-LD), and can also be converted into a sitemap XML file.
 //
-// Pure struct usage:
+// See: https://schema.org/SiteNavigationElement
 //
-//	siteNavElement := &schemaorg.SiteNavigationElement{
-//		Name: "Main Navigation",
-//		URL:  "https://www.example.com",
-//		ItemList: &schemaorg.ItemList{
-//			ItemListElement: []schemaorg.ItemListElement{
-//				{Name: "Home", URL: "https://www.example.com", Position: 1},
-//				{Name: "About", URL: "https://www.example.com/about", Position: 2},
-//			},
-//		},
-//	}
+// Example (using helper functions):
 //
-// Factory method usage:
+//	snl := schemaorg.NewSiteNavigationElementList("main", []schemaorg.SiteNavigationElement{
+//		schemaorg.NewSiteNavigationElement(1, "Home", "Go to homepage", "https://www.example.com"),
+//		schemaorg.NewSiteNavigationElement(2, "About", "About us", "https://www.example.com/about"),
+//	})
 //
-//	siteNavElement := schemaorg.NewSiteNavigationElementWithItemList(
-//		"Main Navigation",
-//		"https://www.example.com",
-//		[]schemaorg.ItemListElement{
-//			{Name: "Home", URL: "https://www.example.com", Position: 1},
-//			{Name: "About", URL: "https://www.example.com/about", Position: 2},
-//		},
-//	)
-//
-// // Rendering JSON-LD using templ:
-//
+//	// Render as JSON-LD with templ
 //	templ Page() {
-//		@siteNavElement.ToJsonLd()
+//		@snl.ToJsonLd()
 //	}
 //
-// // Rendering JSON-LD as `template.HTML` value:
-//
-//	jsonLdHtml := siteNavElement.ToGoHTMLJsonLd()
-//
-// Expected output:
-//
-//	{
-//		"@context": "https://schema.org",
-//		"@type": "SiteNavigationElement",
-//		"name": "Main Navigation",
-//		"url": "https://www.example.com",
-//		"itemListElement": [
-//			{"@type": "ListItem", "position": 1, "name": "Home", "url": "https://www.example.com"},
-//			{"@type": "ListItem", "position": 2, "name": "About", "url": "https://www.example.com/about"}
-//		]
-//	}
-//
-// Example usage with `ToSitemapFile`:
+//	// Render as Go template.HTML
+//	html, err := snl.ToGoHTMLJsonLd()
 //
 //	// Generate a sitemap XML file
-//	siteNavElement := &schemaorg.SiteNavigationElement{
-//		Name: "Main Navigation",
-//		URL:  "https://www.example.com",
-//		ItemList: &schemaorg.ItemList{
-//			ItemListElement: []schemaorg.ItemListElement{
-//				{Name: "Home", URL: "https://www.example.com", Position: 1},
-//				{Name: "About", URL: "https://www.example.com/about", Position: 2},
-//			},
-//		},
-//	}
-//	err := siteNavElement.ToSitemapFile("statics/sitemap.xml")
-//	if err != nil {
-//		log.Fatalf("Failed to generate sitemap: %v", err)
+//	err := snl.ToSitemapFile("public/sitemap.xml")
+//
+//	// Load from a sitemap XML file
+//	var snl schemaorg.SiteNavigationElementList
+//	err := snl.FromSitemapFile("public/sitemap.xml")
+//
+// JSON-LD Output:
+//
+//	{
+//	  "@context": "https://schema.org",
+//	  "@type": "ItemList",
+//	  "identifier": "main",
+//	  "itemListElement": [
+//	    {
+//	      "@type": "SiteNavigationElement",
+//	      "position": 1,
+//	      "name": "Home",
+//	      "description": "Go to homepage",
+//	      "url": "https://www.example.com"
+//	    },
+//	    {
+//	      "@type": "SiteNavigationElement",
+//	      "position": 2,
+//	      "name": "About",
+//	      "description": "About us",
+//	      "url": "https://www.example.com/about"
+//	    }
+//	  ]
 //	}
 //
-// Example usage with `FromSitemapFile`:
-//
-//	// Parse a sitemap XML file and populate the SiteNavigationElement struct
-//	siteNavElement := &schemaorg.SiteNavigationElement{}
-//	err := siteNavElement.FromSitemapFile("statics/sitemap.xml")
-//	if err != nil {
-//		log.Fatalf("Failed to parse sitemap: %v", err)
-//	}
-//
-// Expected output:
+// Sitemap XML Output:
 //
 //	<?xml version="1.0" encoding="UTF-8"?>
 //	<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 //	  <url>
-//	    <loc>http://www.example.com/</loc>
+//	    <loc>https://www.example.com</loc>
 //	    <priority>0.5</priority>
 //	  </url>
 //	  <url>
-//	    <loc>http://www.example.com/about</loc>
+//	    <loc>https://www.example.com/about</loc>
 //	    <priority>0.5</priority>
 //	  </url>
 //	</urlset>
+
+// --------------------------
+// Schema.org Types
+// --------------------------
+
+// SiteNavigationElement represents a Schema.org SiteNavigationElement.
 type SiteNavigationElement struct {
-	Context    string    `json:"@context"`
-	Type       string    `json:"@type"`
-	Name       string    `json:"name,omitempty"`
-	URL        string    `json:"url,omitempty"`
-	Position   int       `json:"position,omitempty"`
-	Identifier string    `json:"identifier,omitempty"`
-	ItemList   *ItemList `json:"itemList,omitempty"`
+	Type        string `json:"@type"`
+	Position    int    `json:"position,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
 }
 
-// ItemList represents a Schema.org ItemList object
-type ItemList struct {
-	Context         string            `json:"@context"`
-	Type            string            `json:"@type"`
-	ItemListElement []ItemListElement `json:"itemListElement"`
+// SiteNavigationElementList represents an ItemList of SiteNavigationElement.
+type SiteNavigationElementList struct {
+	Context         string                  `json:"@context"`
+	Type            string                  `json:"@type"`
+	Identifier      string                  `json:"identifier,omitempty"`
+	ItemListElement []SiteNavigationElement `json:"itemListElement,omitempty"`
 }
 
-// ItemListElement represents an individual item in an ItemList
-type ItemListElement struct {
-	Type     string `json:"@type"`
-	Name     string `json:"name,omitempty"`
-	URL      string `json:"url,omitempty"`
-	Position int    `json:"position,omitempty"`
-}
+// --------------------------
+// XML Sitemap Types
+// --------------------------
 
 // XMLSitemapUrl represents a single URL entry in the sitemap XML.
 type XMLSitemapUrl struct {
@@ -149,74 +125,86 @@ type XMLSitemap struct {
 	Urls    []XMLSitemapUrl `xml:"url"`
 }
 
-// NewSiteNavigationElement initializes a SiteNavigationElement with default context and type.
-func NewSiteNavigationElement(name string, url string, position int, identifier string, itemList *ItemList) *SiteNavigationElement {
-	sne := &SiteNavigationElement{
-		Name:       name,
-		URL:        url,
-		Position:   position,
-		Identifier: identifier,
-		ItemList:   itemList,
-	}
-	sne.ensureDefaults()
-	return sne
+// NavigationLink represents a structured navigation item with optional description.
+type NavigationLink struct {
+	Name        string
+	URL         string
+	Description string
 }
 
-// NewSiteNavigationElementWithItemList initializes a SiteNavigationElement with default context, type, and an ItemList.
-func NewSiteNavigationElementWithItemList(name, url string, items []ItemListElement) *SiteNavigationElement {
-	// Create a new ItemList
-	itemList := &ItemList{
+// --------------------------
+// Constructors & Defaults
+// -------------------------
+
+// NewSiteNavigationElementList creates a SiteNavigationElementList (ItemList)
+// with default context/type and an optional identifier.
+func NewSiteNavigationElementList(
+	identifier string,
+	items []SiteNavigationElement,
+) *SiteNavigationElementList {
+	return &SiteNavigationElementList{
 		Context:         "https://schema.org",
 		Type:            "ItemList",
+		Identifier:      identifier,
 		ItemListElement: items,
 	}
-
-	// Create a new SiteNavigationElement with the provided ItemList
-	siteNavElement := &SiteNavigationElement{
-		Name:     name,
-		URL:      url,
-		ItemList: itemList,
-	}
-
-	// Ensure defaults are set
-	siteNavElement.ensureDefaults()
-
-	return siteNavElement
 }
 
-// NewItemListElement creates a new ItemListElement with default values.
-func NewItemListElement(name, url string, position int) ItemListElement {
-	return ItemListElement{
-		Type:     "ListItem",
-		Name:     name,
-		URL:      url,
-		Position: position,
+// NewSiteNavigationElement creates a SiteNavigationElement with full control over all fields.
+func NewSiteNavigationElement(position int, name, description, url string) SiteNavigationElement {
+	return SiteNavigationElement{
+		Type:        "SiteNavigationElement",
+		Position:    position,
+		Name:        name,
+		Description: description,
+		URL:         url,
 	}
 }
 
-// NewItemList creates a new ItemList with default values.
-func NewItemList(elements []ItemListElement) ItemList {
-	return ItemList{
-		Context:         "https://schema.org",
-		Type:            "ItemList",
-		ItemListElement: elements,
+// NewSimpleSiteNavigationElement creates a SiteNavigationElement with no description.
+func NewSimpleSiteNavigationElement(position int, name, url string) SiteNavigationElement {
+	return NewSiteNavigationElement(position, name, "", url)
+}
+
+// NewSiteNavigationElementsFromLinks creates SiteNavigationElement items from a slice
+// of NavigationLink structs. The position is assigned incrementally starting at 1.
+func NewSiteNavigationElementsFromLinks(links []NavigationLink) []SiteNavigationElement {
+	var result []SiteNavigationElement
+	for i, link := range links {
+		result = append(result, NewSiteNavigationElement(i+1, link.Name, link.Description, link.URL))
+	}
+	return result
+}
+
+// ensureDefaults initializes a SiteNavigationElementList with default context and type.
+func (snl *SiteNavigationElementList) ensureDefaults() {
+	if snl.Context == "" {
+		snl.Context = "https://schema.org"
+	}
+
+	if snl.Type == "" {
+		snl.Type = "ItemList"
+	}
+
+}
+
+func (sne *SiteNavigationElement) ensureDefaults() {
+	if sne.Type == "" {
+		sne.Type = "SiteNavigationElement"
 	}
 }
 
-func (s *SiteNavigationElement) Validate() []string {
+// --------------------------
+// Validation
+// --------------------------
+
+func (snl *SiteNavigationElementList) Validate() (bool, []string) {
 	var warnings []string
 
-	if s.Name == "" {
-		warnings = append(warnings, "missing recommended field: name")
-	}
-	if s.URL == "" {
-		warnings = append(warnings, "missing recommended field: url")
-	}
-
-	if s.ItemList == nil || len(s.ItemList.ItemListElement) == 0 {
+	if len(snl.ItemListElement) == 0 {
 		warnings = append(warnings, "ItemList should contain at least one item")
 	} else {
-		for i, item := range s.ItemList.ItemListElement {
+		for i, item := range snl.ItemListElement {
 			if item.Name == "" {
 				warnings = append(warnings, fmt.Sprintf("missing name in ItemListElement at position %d", i+1))
 			}
@@ -229,64 +217,90 @@ func (s *SiteNavigationElement) Validate() []string {
 		}
 	}
 
-	return warnings
+	return len(warnings) == 0, warnings
 }
 
+// --------------------------
+// JSON-LD Rendering
+// --------------------------
+
 // ToJsonLd converts the SiteNavigationElement struct to a JSON-LD `templ.Component`.
-func (sne *SiteNavigationElement) ToJsonLd() templ.Component {
-	sne.ensureDefaults()
-	id := fmt.Sprintf("%s-%s", "siteNavElem", teseo.GenerateUniqueKey())
-	return templ.JSONScript(id, sne).WithType("application/ld+json")
+func (snl *SiteNavigationElementList) ToJsonLd() templ.Component {
+	snl.ensureDefaults()
+
+	ok, msgs := snl.Validate()
+	if !ok {
+		for _, msg := range msgs {
+			fmt.Fprintln(os.Stderr, "⚠️", msg)
+		}
+	}
+
+	for i := range snl.ItemListElement {
+		snl.ItemListElement[i].ensureDefaults()
+	}
+
+	id := "siteNavItemList-" + teseo.GenerateUniqueKey()
+	if snl.Identifier != "" {
+		id = "siteNavItemList-" + snl.Identifier
+	}
+
+	return templ.JSONScript(id, snl).WithType("application/ld+json")
 }
 
 // ToGoHTMLJsonLd renders the SiteNavigationElement struct as `template.HTML` value for Go's `html/template`.
-func (sne *SiteNavigationElement) ToGoHTMLJsonLd() (template.HTML, error) {
-	return teseo.RenderToHTML(sne.ToJsonLd())
+func (itemList *SiteNavigationElementList) ToGoHTMLJsonLd() (template.HTML, error) {
+	return teseo.RenderToHTML(itemList.ToJsonLd())
 }
 
-// ToSitemapFile generates a sitemap XML file from the SiteNavigationElement struct.
-func (s *SiteNavigationElement) ToSitemapFile(filename string) error {
-	if s.ItemList == nil {
-		return fmt.Errorf("ItemList is nil, cannot generate sitemap")
+// --------------------------
+// Sitemap File Handling
+// --------------------------
+
+// ToSitemapBytes returns the XML sitemap content as a byte slice.
+func (itemList *SiteNavigationElementList) ToSitemapBytes() ([]byte, error) {
+	if itemList.ItemListElement == nil {
+		return nil, fmt.Errorf("item list is nil, cannot generate sitemap")
 	}
 
-	// Populate the XML structure with the necessary namespace
-	var sitemap XMLSitemap
-	sitemap.Xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9" // Set the namespace
+	sitemap := XMLSitemap{
+		Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
+	}
 
-	for _, item := range s.ItemList.ItemListElement {
-		// Add each item as an XML sitemap URL entry
-		url := XMLSitemapUrl{
+	for _, item := range itemList.ItemListElement {
+		sitemap.Urls = append(sitemap.Urls, XMLSitemapUrl{
 			Loc:      item.URL,
-			Priority: "0.5", // Example priority, can be adjusted or made dynamic
-		}
-		sitemap.Urls = append(sitemap.Urls, url)
+			Priority: "0.5",
+		})
 	}
 
-	// Marshal the sitemap struct to XML
-	xmlData, err := marshalIndent(sitemap, "", "  ")
+	data, err := marshalIndent(sitemap, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error marshaling sitemap to XML: %v", err)
+		return nil, fmt.Errorf("error marshaling sitemap XML: %w", err)
 	}
 
-	// Add the XML header
-	xmlData = append([]byte(xml.Header), xmlData...)
+	return append([]byte(xml.Header), data...), nil
+}
 
-	// Write the XML data to a file
-	err = writeFile(filename, xmlData, 0644)
+// ToSitemapFile generates a sitemap XML file and writes it to the specified path.
+func (itemList *SiteNavigationElementList) ToSitemapFile(filename string) error {
+	data, err := itemList.ToSitemapBytes()
 	if err != nil {
-		return fmt.Errorf("error writing XML file: %v", err)
+		return fmt.Errorf("failed to generate sitemap XML: %w", err)
+	}
+
+	if err := writeFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write sitemap file %q: %w", filename, err)
 	}
 
 	return nil
 }
 
 // FromSitemapFile parses a sitemap XML file and populates the SiteNavigationElement struct.
-func (s *SiteNavigationElement) FromSitemapFile(filename string) error {
+func (itemList *SiteNavigationElementList) FromSitemapFile(filename string) error {
 	// Open the XML file
 	xmlFile, err := openFile(filename)
 	if err != nil {
-		return fmt.Errorf("could not open XML file: %v", err)
+		return fmt.Errorf("failed to open sitemap XML file %q: %w", filename, err)
 	}
 	defer xmlFile.Close()
 
@@ -304,46 +318,17 @@ func (s *SiteNavigationElement) FromSitemapFile(filename string) error {
 	}
 
 	// Populate the SiteNavigationElement struct from the parsed XML
-	s.Context = "https://schema.org"
-	s.Type = "SiteNavigationElement"
-	s.ItemList = &ItemList{
-		Context: "https://schema.org",
-		Type:    "ItemList",
-	}
+	itemList.ensureDefaults()
 
 	for i, url := range sitemap.Urls {
 		// Add each URL as an ItemListElement in the ItemList
-		item := ItemListElement{
+		item := SiteNavigationElement{
 			Type:     "SiteNavigationElement",
 			URL:      url.Loc,
 			Position: i + 1, // Assign position incrementally
 		}
-		s.ItemList.ItemListElement = append(s.ItemList.ItemListElement, item)
+		itemList.ItemListElement = append(itemList.ItemListElement, item)
 	}
 
 	return nil
-}
-
-// makeSiteNavigationElement initializes a SiteNavigationElement with default context and type.
-func (sne *SiteNavigationElement) ensureDefaults() {
-	if sne.Context == "" {
-		sne.Context = "https://schema.org"
-	}
-
-	if sne.Type == "" {
-		sne.Type = "SiteNavigationElement"
-	}
-
-	if sne.Position == 0 {
-		sne.Position = 1
-	}
-
-	if sne.ItemList != nil {
-		if sne.ItemList.Context == "" {
-			sne.ItemList.Context = "https://schema.org"
-		}
-		if sne.ItemList.Type == "" {
-			sne.ItemList.Type = "ItemList"
-		}
-	}
 }

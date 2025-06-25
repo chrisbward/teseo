@@ -25,14 +25,11 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 			DatePublished: "2020-01-01",
 			DateModified:  "2024-09-01",
 		},
-		SiteNavElement: &schemaorg.SiteNavigationElement{
-			Name: "Main Navigation",
-			URL:  "https://www.example.com",
-			ItemList: &schemaorg.ItemList{
-				ItemListElement: []schemaorg.ItemListElement{
-					{Name: "Home", URL: "https://www.example.com", Position: 1},
-					{Name: "About", URL: "https://www.example.com/about", Position: 2},
-				},
+		SiteNavElement: &schemaorg.SiteNavigationElementList{
+			Identifier: "main-nav",
+			ItemListElement: []schemaorg.SiteNavigationElement{
+				{Name: "Home", Description: "ACME home page", URL: "https://www.example.com", Position: 1},
+				{Name: "About", Description: "Read more about ACME company", URL: "https://www.example.com/about", Position: 2},
 			},
 		},
 	}

@@ -8,7 +8,7 @@ import (
 
 type SEOItems struct {
 	WebPage        *schemaorg.WebPage
-	SiteNavElement *schemaorg.SiteNavigationElement
+	SiteNavElement *schemaorg.SiteNavigationElementList
 	Breadcrumb     *schemaorg.BreadcrumbList
 	Profile        *opengraph.Profile
 	TwitterCard    *twittercard.TwitterCard
