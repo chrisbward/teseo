@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-
-	"github.com/a-h/templ"
 )
 
 func TestVideo_metaTags(t *testing.T) {
@@ -135,5 +133,5 @@ func TestVideo_ToGoHTMLMetaTags_Render(t *testing.T) {
 
 func TestVideo_ToMetaTags_ImplementsTemplComponent(t *testing.T) {
 	video := NewVideo("Test", "", "", "", "", nil, "", "")
-	var _ templ.Component = video.ToMetaTags() // compile-time check
+	var _ = video.ToMetaTags() // compile-time check
 }

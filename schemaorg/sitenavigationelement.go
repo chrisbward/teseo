@@ -296,13 +296,17 @@ func (itemList *SiteNavigationElementList) ToSitemapFile(filename string) error 
 }
 
 // FromSitemapFile parses a sitemap XML file and populates the SiteNavigationElement struct.
-func (itemList *SiteNavigationElementList) FromSitemapFile(filename string) error {
+func (itemList *SiteNavigationElementList) FromSitemapFile(filename string) (err error) {
 	// Open the XML file
 	xmlFile, err := openFile(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open sitemap XML file %q: %w", filename, err)
 	}
-	defer xmlFile.Close()
+	defer func() {
+		if cerr := xmlFile.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
 
 	// Read the file content
 	byteValue, err := io.ReadAll(xmlFile)
@@ -321,11 +325,10 @@ func (itemList *SiteNavigationElementList) FromSitemapFile(filename string) erro
 	itemList.ensureDefaults()
 
 	for i, url := range sitemap.Urls {
-		// Add each URL as an ItemListElement in the ItemList
 		item := SiteNavigationElement{
 			Type:     "SiteNavigationElement",
 			URL:      url.Loc,
-			Position: i + 1, // Assign position incrementally
+			Position: i + 1,
 		}
 		itemList.ItemListElement = append(itemList.ItemListElement, item)
 	}

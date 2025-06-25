@@ -43,8 +43,8 @@ func TestNewWebSite_SetsType(t *testing.T) {
 		"https://example.com/logo.jpg",
 	)
 
-	if ws.OpenGraphObject.Type != "website" {
-		t.Errorf("expected type to be 'website', got '%s'", ws.OpenGraphObject.Type)
+	if ws.Type != "website" {
+		t.Errorf("expected type to be 'website', got '%s'", ws.Type)
 	}
 }
 

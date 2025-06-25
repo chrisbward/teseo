@@ -182,7 +182,9 @@ func TestSiteNavigationElementList_ToJsonLd_WritesWarnings(t *testing.T) {
 	component := list.ToJsonLd()
 
 	// Close writer and read stderr content
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatalf("failed to close pipe writer: %v", err)
+	}
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
 		t.Fatalf("failed to read stderr: %v", err)
@@ -223,40 +225,6 @@ func TestSiteNavigationElement_ToGoHTMLJsonLd(t *testing.T) {
 	}
 }
 
-// TestToSitemapFile tests the ToSitemapFile function
-func TestToSitemapFile(t *testing.T) {
-	// Create a temporary file to write the sitemap
-	tempFile, err := os.CreateTemp("", "sitemap-*.xml")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tempFile.Name()) // Clean up after test
-
-	// Call ToSitemapFile to write to the temp file
-	err = sampleSiteNav.ToSitemapFile(tempFile.Name())
-	if err != nil {
-		t.Fatalf("ToSitemapFile failed: %v", err)
-	}
-
-	// Read the file and check the output
-	output, err := os.ReadFile(tempFile.Name())
-	if err != nil {
-		t.Fatalf("Failed to read generated sitemap file: %v", err)
-	}
-
-	// Compare the generated XML with the expected output by unmarshalling both
-	var expected, actual XMLSitemap
-	if err := xml.Unmarshal([]byte(sampleSitemapXML), &expected); err != nil {
-		t.Fatalf("invalid expected XML: %v", err)
-	}
-	if err := xml.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("invalid generated XML: %v", err)
-	}
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("sitemap XML mismatch\nExpected: %+v\nGot: %+v", expected, actual)
-	}
-}
-
 // TestFromSitemapFile tests the FromSitemapFile function
 func TestFromSitemapFile(t *testing.T) {
 	// Create a temporary file with sample XML content
@@ -264,7 +232,11 @@ func TestFromSitemapFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name()) // Clean up after test
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			t.Logf("warning: failed to remove temp file: %v", err)
+		}
+	}()
 
 	// Write the sample XML to the temp file
 	_, err = tempFile.WriteString(sampleSitemapXML)
@@ -292,6 +264,111 @@ func TestFromSitemapFile(t *testing.T) {
 	}
 }
 
+func TestFromSitemapFile_Errors(t *testing.T) {
+	sne := &SiteNavigationElementList{}
+
+	// File not found
+	err := sne.FromSitemapFile("/nonexistent/path/to/file.xml") // from previous execution
+	if err == nil {
+		t.Errorf("expected error for nonexistent file")
+	}
+
+	// Invalid XML
+	tempFile, err := os.CreateTemp("", "invalid-*.xml")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			t.Logf("warning: failed to remove temp file: %v", err)
+		}
+	}()
+
+	_, err = tempFile.WriteString("<<< invalid xml >>>")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	// Close writer
+	if err := tempFile.Close(); err != nil {
+		t.Fatalf("failed to close pipe writer: %v", err)
+	}
+
+	err = sne.FromSitemapFile(tempFile.Name())
+	if err == nil {
+		t.Errorf("expected error for invalid XML")
+	}
+}
+
+type brokenCloser struct {
+	io.Reader
+}
+
+func (b *brokenCloser) Close() error {
+	return fmt.Errorf("simulated close error")
+}
+
+func TestFromSitemapFile_CloseError(t *testing.T) {
+	// Backup and restore original openFile
+	origOpenFile := openFile
+	defer func() { openFile = origOpenFile }()
+
+	// Minimal valid XML
+	xmlData := `<?xml version="1.0" encoding="UTF-8"?>
+	<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+		<url><loc>https://example.com</loc></url>
+	</urlset>`
+
+	// override openFile inside the test function
+	openFile = func(name string) (io.ReadCloser, error) {
+		return &brokenCloser{Reader: strings.NewReader(xmlData)}, nil
+	}
+
+	var sne SiteNavigationElementList
+	err := sne.FromSitemapFile("dummy.xml")
+
+	if err == nil || !strings.Contains(err.Error(), "failed to close file") {
+		t.Errorf("expected close error, got: %v", err)
+	}
+}
+
+// TestToSitemapFile tests the ToSitemapFile function
+func TestToSitemapFile(t *testing.T) {
+	// Create a temporary file to write the sitemap
+	tempFile, err := os.CreateTemp("", "sitemap-*.xml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			t.Logf("warning: failed to remove temp file: %v", err)
+		}
+	}()
+
+	// Call ToSitemapFile to write to the temp file
+	err = sampleSiteNav.ToSitemapFile(tempFile.Name())
+	if err != nil {
+		t.Fatalf("ToSitemapFile failed: %v", err)
+	}
+
+	// Read the file and check the output
+	output, err := os.ReadFile(tempFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to read generated sitemap file: %v", err)
+	}
+
+	// Compare the generated XML with the expected output by unmarshalling both
+	var expected, actual XMLSitemap
+	if err := xml.Unmarshal([]byte(sampleSitemapXML), &expected); err != nil {
+		t.Fatalf("invalid expected XML: %v", err)
+	}
+	if err := xml.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("invalid generated XML: %v", err)
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("sitemap XML mismatch\nExpected: %+v\nGot: %+v", expected, actual)
+	}
+}
+
 func TestToSitemapFile_Errors(t *testing.T) {
 	sne := &SiteNavigationElementList{}
 
@@ -308,33 +385,6 @@ func TestToSitemapFile_Errors(t *testing.T) {
 	err = sne.ToSitemapFile("/tmp/tmpoai36nm9") // from previous execution
 	if err == nil {
 		t.Errorf("expected write error, got nil")
-	}
-}
-
-func TestFromSitemapFile_Errors(t *testing.T) {
-	sne := &SiteNavigationElementList{}
-
-	// File not found
-	err := sne.FromSitemapFile("/nonexistent/path/to/file.xml") // from previous execution
-	if err == nil {
-		t.Errorf("expected error for nonexistent file")
-	}
-
-	// Invalid XML
-	tempFile, err := os.CreateTemp("", "invalid-*.xml")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
-	defer os.Remove(tempFile.Name())
-	_, err = tempFile.WriteString("<<< invalid xml >>>")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
-	tempFile.Close()
-
-	err = sne.FromSitemapFile(tempFile.Name())
-	if err == nil {
-		t.Errorf("expected error for invalid XML")
 	}
 }
 
