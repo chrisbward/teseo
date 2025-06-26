@@ -30,6 +30,7 @@ type ContactPoint struct {
 	Type              string        `json:"@type"`
 	Telephone         string        `json:"telephone,omitempty"`
 	ContactType       string        `json:"contactType,omitempty"`
+	ContactOption     StringOrSlice `json:"contactOption,omitempty"`
 	AreaServed        StringOrSlice `json:"areaServed,omitempty"`
 	AvailableLanguage string        `json:"availableLanguage,omitempty"`
 }
